@@ -404,7 +404,7 @@ const EXTRA_EXERCISES = [
     title: "Past Practice",
     tag: "Past + Did/Didn't",
     description: "Diálogo de daily, Business English e passado.",
-    url: "practice.html"
+    url: "https://yasvizeu.github.io/adjalma/practice.html"
   }
 ];
 
