@@ -1,3 +1,15 @@
+
+// ============================================================
+// YV English — Adjalma Santana Student Hub
+// Front-end only access control + content rendering
+// ============================================================
+
+const STUDENT_PASSWORD = "santana02";
+const MASTER_PASSWORD = "yv314724";
+const AUTH_KEY = "yv_adjalma_auth_until";
+const SESSION_KEY = "yv_adjalma_session_auth";
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+
 const PLAN = document.body.getAttribute("data-plan") || "Foundation";
 
 const DAILY = {
@@ -386,152 +398,438 @@ const WEEKS = [
   }
 ];
 
+const EXTRA_EXERCISES = [];
+
+const EXTRA_CONTENT = {
+  podcasts: [
+    { title: "Podcast recommendation", description: "Adicione aqui podcasts para listening practice do Adjalma.", url: "" }
+  ],
+  books: [
+    { title: "Book recommendations", description: "Adicione aqui livros ou readers indicados para o Adjalma.", url: "" }
+  ],
+  videos: [
+    { title: "Video recommendations", description: "Adicione aqui vídeos úteis de pronúncia, desenvolvimento ou inglês profissional.", url: "" }
+  ],
+  websites: [
+    { title: "Useful websites", description: "Adicione aqui sites para consulta, listening ou vocabulário.", url: "" }
+  ],
+  notes: [
+    { title: "Yas' notes", description: "Use esta área para deixar orientações semanais e links especiais.", url: "" }
+  ]
+};
+
+let activeContentTab = "podcasts";
 var CW_ANSWERS = {};
 
-function openDaily() {
-  var overlay=document.getElementById("dailyOverlay");
-  var body=document.getElementById("dailyBody");
-  var dateEl=document.getElementById("dailyDate");
-  dateEl.textContent=DAILY.date;
-  if(PLAN!=="Fluency"){
-    body.innerHTML='<div class="daily-locked"><span class="daily-lock-icon">🔒</span><h3>Conteudo Fluency</h3><p>O Daily Content e exclusivo para alunos do plano <strong>Fluency</strong>.</p><p>Fale com a Yas para fazer o upgrade! ✦</p></div>';
-  } else {
-    var html='<div class="daily-text-wrap"><h3 class="res-title">Texto de hoje</h3><div class="daily-text">'+DAILY.text+'</div></div><div class="daily-questions-wrap"><h3 class="res-title" style="margin-top:24px">Exercicios</h3><div class="daily-questions">';
-    DAILY.questions.forEach(function(q,qi){
-      html+='<div class="daily-q" id="q'+qi+'"><p class="daily-q-text"><strong>'+(qi+1)+'.</strong> '+q.question+'</p><div class="daily-options">';
-      q.options.forEach(function(opt){html+='<button class="daily-opt" id="q'+qi+'-'+opt.letter+'" onclick="checkAnswer('+qi+',\''+opt.letter+'\',\''+q.answer+'\')"><span class="opt-letter">'+opt.letter+'</span><span class="opt-text">'+opt.text+'</span></button>';});
-      html+='</div><p class="daily-feedback" id="feedback'+qi+'"></p></div>';
-    });
-    html+='</div><div class="daily-action-btns"><button class="daily-reset-btn" onclick="openDaily()">Recomecar ↺</button><button class="daily-back-btn" onclick="closeDaily()">Voltar ao menu ←</button></div></div>';
-    body.innerHTML=html;
-  }
-  overlay.classList.add("open");
-  document.body.style.overflow="hidden";
+// ============================================================
+// AUTH
+// ============================================================
+
+function isAuthenticated() {
+  if (sessionStorage.getItem(SESSION_KEY) === "true") return true;
+  const expiry = Number(localStorage.getItem(AUTH_KEY) || 0);
+  return expiry && Date.now() < expiry;
 }
 
-function checkAnswer(qi,chosen,correct){
-  var opts=document.querySelectorAll("#q"+qi+" .daily-opt");
-  opts.forEach(function(b){b.disabled=true;});
-  document.getElementById("q"+qi+"-"+chosen).classList.add(chosen===correct?"correct":"wrong");
-  if(chosen!==correct)document.getElementById("q"+qi+"-"+correct).classList.add("correct");
-  var fb=document.getElementById("feedback"+qi);
-  if(chosen===correct){fb.textContent="✦ Correct!";fb.className="daily-feedback feedback-correct";}
-  else{fb.textContent="The correct answer is "+correct.toUpperCase()+".";fb.className="daily-feedback feedback-wrong";}
+function unlockSite() {
+  const authScreen = document.getElementById("authScreen");
+  const siteShell = document.getElementById("siteShell");
+  authScreen.classList.add("hidden");
+  siteShell.classList.add("unlocked");
+  siteShell.setAttribute("aria-hidden", "false");
 }
 
-function closeDaily(){document.getElementById("dailyOverlay").classList.remove("open");document.body.style.overflow="";}
-document.getElementById("dailyOverlay").addEventListener("click",function(e){if(e.target===this)closeDaily();});
+function lockSite() {
+  document.getElementById("authScreen").classList.remove("hidden");
+  document.getElementById("siteShell").classList.remove("unlocked");
+  document.getElementById("siteShell").setAttribute("aria-hidden", "true");
+}
 
-function speakWord(word,btn){
-  if(!window.speechSynthesis)return;
+function logoutStudent() {
+  localStorage.removeItem(AUTH_KEY);
+  sessionStorage.removeItem(SESSION_KEY);
+  window.location.href = "login.html";
+}
+
+function setupAuth() {
+  if (isAuthenticated()) unlockSite();
+  else lockSite();
+
+  document.getElementById("authForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const pass = document.getElementById("studentPassword").value.trim();
+    const remember = document.getElementById("rememberAccess").checked;
+    const error = document.getElementById("authError");
+
+    if (pass === STUDENT_PASSWORD || pass === MASTER_PASSWORD) {
+      if (remember) localStorage.setItem(AUTH_KEY, String(Date.now() + THREE_DAYS_MS));
+      else sessionStorage.setItem(SESSION_KEY, "true");
+      error.textContent = "";
+      unlockSite();
+    } else {
+      error.textContent = "Senha incorreta. Tente novamente.";
+    }
+  });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function scrollToSection(id) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+}
+
+function speakWord(word, btn) {
+  if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
-  var u=new SpeechSynthesisUtterance(word);
-  u.lang="en-US";u.rate=0.85;
-  if(btn){btn.classList.add("speaking");u.onend=function(){btn.classList.remove("speaking");};u.onerror=function(){btn.classList.remove("speaking");};}
+  var u = new SpeechSynthesisUtterance(word);
+  u.lang = "en-US";
+  u.rate = 0.85;
+  if (btn) {
+    btn.classList.add("speaking");
+    u.onend = function() { btn.classList.remove("speaking"); };
+    u.onerror = function() { btn.classList.remove("speaking"); };
+  }
   window.speechSynthesis.speak(u);
 }
 
-function hasContent(arr){return Array.isArray(arr)&&arr.filter(function(i){return i&&i.label;}).length>0;}
-
-function renderGrid(){
-  var grid=document.getElementById("weeksGrid");var html="";
-  WEEKS.forEach(function(w,i){
-    var icons="";
-    if(hasContent(w.pdfs))icons+='<span class="ricon ricon-pdf">P</span>';
-    if(hasContent(w.audios))icons+='<span class="ricon ricon-audio">A</span>';
-    if(hasContent(w.exercises))icons+='<span class="ricon ricon-exercise">E</span>';
-    if(hasContent(w.links))icons+='<span class="ricon ricon-link">L</span>';
-    if(hasContent(w.videos))icons+='<span class="ricon ricon-video">V</span>';
-    if(w.vocabulary&&w.vocabulary.length)icons+='<span class="ricon ricon-vocab">W</span>';
-    html+='<article class="week-card" onclick="openModal('+i+')" tabindex="0"><div class="card-head"><p class="card-number">Semana '+w.number+'</p><h2 class="card-title">'+w.title+'</h2></div><div class="card-body"><div class="card-icons">'+icons+'</div><div class="card-cta"><span>Ver material</span><span class="card-cta-arrow">→</span></div></div></article>';
-  });
-  grid.innerHTML=html;
+function hasContent(arr) {
+  return Array.isArray(arr) && arr.filter(function(i) { return i && (i.label || typeof i === "string"); }).length > 0;
 }
 
-function openModal(index){
-  var w=WEEKS[index];
-  document.getElementById("modalWeekLabel").textContent="Semana "+w.number;
-  document.getElementById("modalTitle").textContent=w.title;
-  document.getElementById("modalFocus").textContent=w.focus||"";
-  document.getElementById("modalBody").innerHTML=
-    renderPdfs(w.pdfs)+renderExercises(w.exercises)+renderAudios(w.audios)+
-    renderLinks(w.links)+renderVideos(w.videos)+renderNotes(w.notes)+
-    renderClasswork(w.classwork)+renderVocabulary(w.vocabulary)+
-    '<div class="yas-tip"><strong>Dica da YV</strong>Pratique todos os dias um pouco. Consistencia e o que te leva a fluencia. ✦</div>';
-  document.getElementById("overlay").classList.add("open");
-  document.body.style.overflow="hidden";
+function getWeekExtraExercises(weekNumber) {
+  return EXTRA_EXERCISES.filter(item => item.week === weekNumber);
 }
 
-function closeModal(){if(window.speechSynthesis)window.speechSynthesis.cancel();document.getElementById("overlay").classList.remove("open");document.body.style.overflow="";}
+// ============================================================
+// DAILY CONTENT
+// ============================================================
 
-function renderPdfs(p){var items=(p||[]).filter(function(x){return x.label;});if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">PDFs</h3><div class="res-list">';items.forEach(function(x){h+='<div class="res-item"><span class="res-item-label">'+x.label+'</span><div class="res-actions"><a href="'+x.url+'" target="_blank" class="btn-open">Abrir ↗</a><a href="'+x.url+'" download class="btn-download">Baixar</a></div></div>';});return h+'</div></div>';}
-function renderExercises(e){var items=(e||[]).filter(Boolean);if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">Exercicios</h3><ul class="exercise-list">';items.forEach(function(x){h+='<li>'+x+'</li>';});return h+'</ul></div>';}
-function renderAudios(a){var items=(a||[]).filter(function(x){return x.label;});if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">Audios</h3><div class="res-list">';items.forEach(function(x){if(x.url){h+='<div class="res-item audio-item"><span class="res-item-label">'+x.label+'</span><audio controls preload="none"><source src="'+x.url+'"></audio></div>';}else{h+='<div class="res-item"><span class="res-item-label">'+x.label+'</span><span class="via-whatsapp">via WhatsApp</span></div>';}});return h+'</div></div>';}
-function renderLinks(l){var items=(l||[]).filter(function(x){return x.label;});if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">Links</h3><div class="res-list">';items.forEach(function(x){h+='<div class="res-item"><span class="res-item-label">'+x.label+'</span><div class="res-actions"><a href="'+x.url+'" target="_blank" class="btn-open">Abrir ↗</a></div></div>';});return h+'</div></div>';}
-function renderVideos(v){var items=(v||[]).filter(function(x){return x.label;});if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">Videos</h3><div class="res-list">';items.forEach(function(x){h+='<div class="res-item"><span class="res-item-label">'+x.label+'</span><div class="res-actions"><a href="'+x.url+'" target="_blank" class="btn-open">Assistir ↗</a></div></div>';});return h+'</div></div>';}
-function renderNotes(n){var items=(n||[]).filter(Boolean);if(!items.length)return"";var h='<div class="resource-section"><h3 class="res-title">Notas da Aula</h3><ul class="notes-list">';items.forEach(function(x){h+='<li>'+x+'</li>';});return h+'</ul></div>';}
+function openDaily() {
+  var overlay = document.getElementById("dailyOverlay");
+  var body = document.getElementById("dailyBody");
+  var dateEl = document.getElementById("dailyDate");
+  dateEl.textContent = PLAN === "Foundation" ? "Foundation" : DAILY.date;
 
-function renderClasswork(classwork){
-  var sections=(classwork||[]).filter(function(s){return s.title;});
-  if(!sections.length)return"";
-  var html="";
-  sections.forEach(function(section,si){
-    html+='<div class="resource-section"><h3 class="res-title">'+section.title+'</h3><p class="classwork-instruction">'+section.instruction+'</p><div class="classwork-list">';
-    section.items.forEach(function(item,ii){
-      var key="cw_"+si+"_"+ii;
-      CW_ANSWERS[key]=item.a;
-      html+='<div class="classwork-item"><p class="classwork-q"><strong>'+(ii+1)+'.</strong> '+item.q+'</p><button class="classwork-reveal-btn" onclick="revealAnswer(this,\''+key+'\')">Ver resposta</button><p class="classwork-answer" id="'+key+'" style="display:none"></p></div>';
+  if (PLAN !== "Fluency" && PLAN !== "Performance") {
+    body.innerHTML = '<div class="daily-locked">'
+      + '<span class="daily-lock-icon">🔒</span>'
+      + '<h3>Daily Content bloqueado</h3>'
+      + '<p>O Daily Content é exclusivo para alunos dos planos <strong>Fluency</strong> e <strong>Performance</strong>.</p>'
+      + '<p>Seu plano atual é <strong>Foundation</strong>, então essa área ainda não está disponível para você.</p>'
+      + '<p>Fale com a Yas se quiser liberar esse recurso. ✦</p>'
+      + '</div>';
+  } else {
+    var html = '<div class="daily-text-wrap">'
+      + '<h3 class="res-title">Texto de hoje</h3>'
+      + '<div class="daily-text">' + DAILY.text + '</div>'
+      + '</div>'
+      + '<div class="daily-questions-wrap">'
+      + '<h3 class="res-title" style="margin-top:24px">Exercícios</h3>'
+      + '<div class="daily-questions">';
+
+    DAILY.questions.forEach(function(q, qi) {
+      html += '<div class="daily-q" id="q' + qi + '">'
+        + '<p class="daily-q-text"><strong>' + (qi+1) + '.</strong> ' + q.question + '</p>'
+        + '<div class="daily-options">';
+      q.options.forEach(function(opt) {
+        html += '<button class="daily-opt" id="q' + qi + '-' + opt.letter + '" onclick="checkAnswer(' + qi + ',\'' + opt.letter + '\',\'' + q.answer + '\')">'
+          + '<span class="opt-letter">' + opt.letter + '</span>'
+          + '<span class="opt-text">' + opt.text + '</span>'
+          + '</button>';
+      });
+      html += '</div><p class="daily-feedback" id="feedback' + qi + '"></p></div>';
     });
-    html+='</div></div>';
+
+    html += '</div><div class="daily-action-btns"><button class="daily-reset-btn" onclick="openDaily()">Recomeçar ↺</button></div></div>';
+    body.innerHTML = html;
+  }
+
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function checkAnswer(qi, chosen, correct) {
+  var opts = document.querySelectorAll("#q" + qi + " .daily-opt");
+  opts.forEach(function(btn) { btn.disabled = true; });
+  var chosenBtn = document.getElementById("q" + qi + "-" + chosen);
+  var correctBtn = document.getElementById("q" + qi + "-" + correct);
+  var feedback = document.getElementById("feedback" + qi);
+  if (chosen === correct) {
+    chosenBtn.classList.add("correct");
+    feedback.textContent = "✦ Correct!";
+    feedback.className = "daily-feedback feedback-correct";
+  } else {
+    chosenBtn.classList.add("wrong");
+    correctBtn.classList.add("correct");
+    feedback.textContent = "The correct answer is " + correct.toUpperCase() + ".";
+    feedback.className = "daily-feedback feedback-wrong";
+  }
+}
+
+function closeDaily() {
+  document.getElementById("dailyOverlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+// ============================================================
+// RENDER HOME
+// ============================================================
+
+function renderGrid() {
+  var grid = document.getElementById("weeksGrid");
+  var html = "";
+  WEEKS.forEach(function(w, i) {
+    var icons = "";
+    if (hasContent(w.pdfs)) icons += '<span class="ricon ricon-pdf" title="PDF">P</span>';
+    if (hasContent(w.audios)) icons += '<span class="ricon ricon-audio" title="Áudio">A</span>';
+    if (hasContent(w.exercises)) icons += '<span class="ricon ricon-exercise" title="Exercícios">E</span>';
+    if (getWeekExtraExercises(w.number).length) icons += '<span class="ricon ricon-extra" title="Extra">+</span>';
+    if (hasContent(w.links)) icons += '<span class="ricon ricon-link" title="Links">L</span>';
+    if (hasContent(w.videos)) icons += '<span class="ricon ricon-video" title="Vídeos">V</span>';
+    if (w.vocabulary && w.vocabulary.length) icons += '<span class="ricon ricon-vocab" title="Vocabulário">W</span>';
+
+    html += '<article class="week-card" onclick="openModal(' + i + ')" tabindex="0">'
+      + '<div class="card-head">'
+      + '<p class="card-number">Semana ' + w.number + '</p>'
+      + '<h2 class="card-title">' + w.title + '</h2>'
+      + '</div>'
+      + '<div class="card-body">'
+      + '<p class="card-focus">' + w.focus + '</p>'
+      + '<div class="card-icons">' + icons + '</div>'
+      + '<div class="card-cta"><span>Ver material</span><span class="card-cta-arrow">→</span></div>'
+      + '</div>'
+      + '</article>';
+  });
+  grid.innerHTML = html;
+}
+
+function renderExtraExercisesHome() {
+  var grid = document.getElementById("extraExercisesGrid");
+  grid.innerHTML = EXTRA_EXERCISES.map(function(item) {
+    return '<article class="extra-exercise-card">'
+      + '<span>' + item.tag + '</span>'
+      + '<h3>' + item.title + '</h3>'
+      + '<p>' + item.description + '</p>'
+      + '<a href="' + item.url + '" target="_blank">Abrir exercício →</a>'
+      + '</article>';
+  }).join("");
+}
+
+function renderExtraContent() {
+  var tabs = document.getElementById("contentTabs");
+  var grid = document.getElementById("extraContentGrid");
+  const labels = { podcasts: "Podcasts", books: "Books", videos: "Videos", websites: "Websites", notes: "Yas' Notes" };
+
+  tabs.innerHTML = Object.keys(EXTRA_CONTENT).map(function(key) {
+    return '<button class="content-tab ' + (key === activeContentTab ? 'active' : '') + '" onclick="setContentTab(\'' + key + '\')">' + labels[key] + '</button>';
+  }).join("");
+
+  grid.innerHTML = EXTRA_CONTENT[activeContentTab].map(function(item) {
+    var action = item.url ? '<a href="' + item.url + '" target="_blank">Abrir conteúdo ↗</a>' : '<em>Adicione um link aqui depois</em>';
+    return '<article class="content-card">'
+      + '<h3>' + item.title + '</h3>'
+      + '<p>' + item.description + '</p>'
+      + action
+      + '</article>';
+  }).join("");
+}
+
+function setContentTab(tab) {
+  activeContentTab = tab;
+  renderExtraContent();
+}
+
+// ============================================================
+// MODAL RENDERERS
+// ============================================================
+
+function openModal(index) {
+  var w = WEEKS[index];
+  document.getElementById("modalWeekLabel").textContent = "Semana " + w.number;
+  document.getElementById("modalTitle").textContent = w.title;
+  document.getElementById("modalFocus").textContent = w.focus || "";
+  document.getElementById("modalBody").innerHTML =
+    renderPdfs(w.pdfs) +
+    renderExercises(w.exercises) +
+    renderWeekExtraExercises(w.number) +
+    renderAudios(w.audios) +
+    renderLinks(w.links) +
+    renderVideos(w.videos) +
+    renderNotes(w.notes) +
+    renderClasswork(w.classwork) +
+    renderVocabulary(w.vocabulary) +
+    '<div class="yas-tip"><strong>Dica da YV</strong>Pratique todos os dias um pouco. Consistência é o que te leva à fluência. ✦</div>';
+  document.getElementById("overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  document.getElementById("overlay").classList.remove("open");
+  document.body.style.overflow = "";
+}
+
+function renderPdfs(pdfs) {
+  var items = (pdfs || []).filter(function(p) { return p.label; });
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">PDFs</h3><div class="res-list">';
+  items.forEach(function(p) {
+    html += '<div class="res-item"><span class="res-item-label">' + p.label + '</span><div class="res-actions"><a href="' + p.url + '" target="_blank" class="btn-open">Abrir ↗</a><a href="' + p.url + '" download class="btn-download">Baixar</a></div></div>';
+  });
+  return html + '</div></div>';
+}
+
+function renderExercises(exercises) {
+  var items = (exercises || []).filter(Boolean);
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Exercícios</h3><ul class="exercise-list">';
+  items.forEach(function(e) { html += '<li>' + e + '</li>'; });
+  return html + '</ul></div>';
+}
+
+function renderWeekExtraExercises(weekNumber) {
+  var items = getWeekExtraExercises(weekNumber);
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Exercícios extras</h3><div class="res-list">';
+  items.forEach(function(item) {
+    html += '<div class="res-item"><span class="res-item-label"><strong>' + item.title + '</strong><br><small>' + item.description + '</small></span><div class="res-actions"><a href="' + item.url + '" target="_blank" class="btn-open">Abrir ↗</a></div></div>';
+  });
+  return html + '</div></div>';
+}
+
+function renderAudios(audios) {
+  var items = (audios || []).filter(function(a) { return a.label; });
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Áudios</h3><div class="res-list">';
+  items.forEach(function(a) {
+    if (a.url) html += '<div class="res-item audio-item"><span class="res-item-label">' + a.label + '</span><audio controls preload="none"><source src="' + a.url + '"></audio></div>';
+    else html += '<div class="res-item"><span class="res-item-label">' + a.label + '</span><span class="via-whatsapp">via WhatsApp</span></div>';
+  });
+  return html + '</div></div>';
+}
+
+function renderLinks(links) {
+  var items = (links || []).filter(function(l) { return l.label; });
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Links</h3><div class="res-list">';
+  items.forEach(function(l) {
+    html += '<div class="res-item"><span class="res-item-label">' + l.label + '</span><div class="res-actions"><a href="' + l.url + '" target="_blank" class="btn-open">Abrir ↗</a></div></div>';
+  });
+  return html + '</div></div>';
+}
+
+function renderVideos(videos) {
+  var items = (videos || []).filter(function(v) { return v.label; });
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Vídeos</h3><div class="res-list">';
+  items.forEach(function(v) {
+    html += '<div class="res-item"><span class="res-item-label">' + v.label + '</span><div class="res-actions"><a href="' + v.url + '" target="_blank" class="btn-open">Assistir ↗</a></div></div>';
+  });
+  return html + '</div></div>';
+}
+
+function renderNotes(notes) {
+  var items = (notes || []).filter(Boolean);
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Notas da aula</h3><ul class="notes-list">';
+  items.forEach(function(n) { html += '<li>' + n + '</li>'; });
+  return html + '</ul></div>';
+}
+
+function renderClasswork(classwork) {
+  var sections = (classwork || []).filter(function(s) { return s.title; });
+  if (!sections.length) return "";
+  var html = "";
+  sections.forEach(function(section, si) {
+    html += '<div class="resource-section"><h3 class="res-title">' + section.title + '</h3><p class="classwork-instruction">' + section.instruction + '</p><div class="classwork-list">';
+    section.items.forEach(function(item, ii) {
+      var key = "cw_" + si + "_" + ii + "_" + Math.random().toString(16).slice(2);
+      CW_ANSWERS[key] = item.a;
+      html += '<div class="classwork-item"><p class="classwork-q"><strong>' + (ii+1) + '.</strong> ' + item.q + '</p><button class="classwork-reveal-btn" onclick="revealAnswer(this,\'' + key + '\')">Ver resposta</button><p class="classwork-answer" id="' + key + '" style="display:none"></p></div>';
+    });
+    html += '</div></div>';
   });
   return html;
 }
 
-function revealAnswer(btn,key){var el=document.getElementById(key);if(el){el.textContent=CW_ANSWERS[key]||"";el.style.display="block";}btn.style.display="none";}
+function revealAnswer(btn, key) {
+  var el = document.getElementById(key);
+  if (el) { el.textContent = CW_ANSWERS[key] || ""; el.style.display = "block"; }
+  btn.style.display = "none";
+}
 
-function renderVocabulary(vocabulary){
-  var items=(vocabulary||[]).filter(function(v){return v.word;});
-  if(!items.length)return"";
-  window._vocabWords=[];
-  var html='<div class="resource-section"><h3 class="res-title">Vocabulario</h3><div class="vocab-grid">';
-  items.forEach(function(v,i){
-    window._vocabWords[i]=v.word;
-    html+='<div class="vocab-card" tabindex="0" onclick="this.classList.toggle(\'flipped\')"><div class="vocab-front"><button class="vocab-speak-btn" onclick="event.stopPropagation();speakVocab('+i+',this)" title="Ouvir">🔊</button><div class="vocab-front-inner"><span class="vocab-word">'+v.word+'</span>'+(v.phonetic?'<span class="vocab-phonetic">'+v.phonetic+'</span>':'')+'</div><span class="vocab-hint">toque para ver</span></div><div class="vocab-back"><span class="vocab-translation">'+v.translation+'</span></div></div>';
+function renderVocabulary(vocabulary) {
+  var items = (vocabulary || []).filter(function(v) { return v.word; });
+  if (!items.length) return "";
+  var html = '<div class="resource-section"><h3 class="res-title">Vocabulário</h3><div class="vocab-grid">';
+  window._vocabWords = [];
+  items.forEach(function(v, i) {
+    window._vocabWords[i] = v.word;
+    html += '<div class="vocab-card" tabindex="0" onclick="this.classList.toggle(\'flipped\')"><div class="vocab-front"><button class="vocab-speak-btn" onclick="event.stopPropagation();speakVocab(' + i + ',this)" title="Ouvir">🔊</button><div class="vocab-front-inner"><span class="vocab-word">' + v.word + '</span>' + (v.phonetic ? '<span class="vocab-phonetic">' + v.phonetic + '</span>' : '') + '</div><span class="vocab-hint">toque para ver</span></div><div class="vocab-back"><span class="vocab-translation">' + v.translation + '</span></div></div>';
   });
-  return html+'</div></div>';
+  return html + '</div></div>';
 }
 
-function speakVocab(i,btn){if(window._vocabWords&&window._vocabWords[i])speakWord(window._vocabWords[i],btn);}
-
-function buildGlossaryHTML(){
-  var all=[];
-  WEEKS.forEach(function(w){(w.vocabulary||[]).filter(function(v){return v.word;}).forEach(function(v){all.push({word:v.word,translation:v.translation,phonetic:v.phonetic,week:w.number});});});
-  if(!all.length)return'<p class="glossary-empty">O glossario vai aparecer aqui conforme as semanas forem avancando. ✦</p>';
-  window._glossWords=[];
-  var html="";
-  all.forEach(function(v,i){window._glossWords[i]=v.word;html+='<div class="glossary-row"><span class="glos-word">'+v.word+'</span><span class="glos-trans">'+v.translation+(v.phonetic?' <span class="glos-phonetic">'+v.phonetic+'</span>':'')+'</span><button class="glos-speak" onclick="speakGloss('+i+',this)" title="Ouvir">🔊</button><span class="glos-week-badge">Sem. '+v.week+'</span></div>';});
-  return html;
+function speakVocab(i, btn) {
+  if (window._vocabWords && window._vocabWords[i]) speakWord(window._vocabWords[i], btn);
 }
 
-function speakGloss(i,btn){if(window._glossWords&&window._glossWords[i])speakWord(window._glossWords[i],btn);}
+// ============================================================
+// GLOSSARY
+// ============================================================
 
-var glossaryOpen=false;
-function toggleGlossary(){
-  var section=document.getElementById("glossarySection");
-  var cta=document.getElementById("glossaryBtnCta");
-  if(!section)return;
-  glossaryOpen=!glossaryOpen;
-  if(glossaryOpen){if(!section.innerHTML.trim())section.innerHTML=buildGlossaryHTML();section.style.display="block";if(cta)cta.textContent="Fechar ↑";setTimeout(function(){section.scrollIntoView({behavior:"smooth",block:"start"});},80);}
-  else{section.style.display="none";if(cta)cta.textContent="Ver palavras →";}
+function getAllGlossary() {
+  var all = [];
+  WEEKS.forEach(function(w) {
+    (w.vocabulary || []).filter(function(v) { return v.word; }).forEach(function(v) {
+      all.push({ word: v.word, translation: v.translation, phonetic: v.phonetic, week: w.number });
+    });
+  });
+  return all;
 }
 
-function renderGlossary(){}
+function buildGlossaryHTML() {
+  var all = getAllGlossary();
+  if (!all.length) return '<div class="glossary-empty">Nenhuma palavra adicionada ainda.</div>';
+  return all.map(function(v, i) {
+    return '<div class="glossary-row"><button class="glos-speak" onclick="speakWord(\'' + v.word.replace(/'/g, "\\'") + '\',this)">🔊</button><span class="glos-word">' + v.word + '</span><span class="glos-trans">' + v.translation + (v.phonetic ? ' <small class="glos-phonetic">' + v.phonetic + '</small>' : '') + '</span><span class="glos-week-badge">Sem. ' + v.week + '</span></div>';
+  }).join("");
+}
 
-document.getElementById("overlay").addEventListener("click",function(e){if(e.target===this)closeModal();});
-document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});
-var touchStartY=0;
-document.addEventListener("touchstart",function(e){touchStartY=e.touches[0].clientY;},{passive:true});
-document.addEventListener("touchmove",function(e){if(document.getElementById("overlay").classList.contains("open")){if(e.touches[0].clientY-touchStartY>100)closeModal();}},{passive:true});
+function renderGlossary() {
+  document.getElementById("glossarySection").innerHTML = buildGlossaryHTML();
+}
+
+function toggleGlossary() {
+  var section = document.getElementById("glossarySection");
+  var cta = document.getElementById("glossaryBtnCta");
+  var isOpen = section.style.display !== "none";
+  section.style.display = isOpen ? "none" : "block";
+  cta.textContent = isOpen ? "Ver palavras →" : "Esconder palavras ↑";
+}
+
+// ============================================================
+// EVENTS / INIT
+// ============================================================
+
+document.getElementById("overlay").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+
+document.getElementById("dailyOverlay").addEventListener("click", function(e) {
+  if (e.target === this) closeDaily();
+});
+
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") {
+    closeModal();
+    closeDaily();
+  }
+});
 
 renderGrid();
+renderExtraExercisesHome();
+renderExtraContent();
 renderGlossary();
