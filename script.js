@@ -402,7 +402,7 @@ const EXTRA_EXERCISES = [
    {
     week: 8,
     title: "Past Practice",
-    tag: "Do/Does + To Be",
+    tag: "Past + Did/Didn't",
     description: "Diálogo de daily, Business English e passado.",
     url: "practice.html"
   }
