@@ -398,8 +398,9 @@ const WEEKS = [
   }
 ];
 
+
 const EXTRA_EXERCISES = [
-   {
+  {
     week: 8,
     title: "Past Practice",
     tag: "Past + Did/Didn't",
@@ -410,7 +411,11 @@ const EXTRA_EXERCISES = [
 
 const EXTRA_CONTENT = {
   podcasts: [
-    { title: "Podcast recommendation", description: "Easy English Podcast", url: "https://open.spotify.com/episode/3GHNuB6YFuBJwDutcipxdE?si=H4cpldwnRkCSp0ZOKvTVEA" }
+    {
+      title: "Easy English Podcast",
+      description: "Podcast recomendado para listening e vocabulário natural.",
+      url: "https://open.spotify.com/episode/3GHNuB6YFuBJwDutcipxdE?si=H4cpldwnRkCSp0ZOKvTVEA"
+    }
   ],
   books: [
     { title: "Book recommendations", description: "Adicione aqui livros ou readers indicados para o Adjalma.", url: "" }
@@ -841,3 +846,4 @@ renderGrid();
 renderExtraExercisesHome();
 renderExtraContent();
 renderGlossary();
+
