@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adjalma Torres · Flashcards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500;1,600&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,600;9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="flashcards.css">
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <a href="index.html" class="back-link">← Back to Adjalma's area</a>
+      <p class="eyebrow">Smart Review</p>
+      <h1>Adjalma’s<br><em>Flashcards ✦</em></h1>
+      <p>Study the glossary with audio, flip cards and tell the system how well you know each word.</p>
+    </header>
+
+    <section class="stats-grid">
+      <div><span id="cardsLeft">0</span><small>cards in deck</small></div>
+      <div><span id="knownCount">0</span><small>known</small></div>
+      <div><span id="hardCount">0</span><small>need review</small></div>
+    </section>
+
+    <section class="flash-stage">
+      <div class="flashcard" id="flashcard" onclick="flipCard()">
+        <div class="flash-inner">
+          <div class="flash-face flash-front">
+            <span class="card-label">English</span>
+            <h2 id="cardWord">wedding</h2>
+            <p id="cardPhonetic">/weding/</p>
+            <small>Tap to flip</small>
+          </div>
+          <div class="flash-face flash-back">
+            <span class="card-label">Português</span>
+            <h2 id="cardTranslation">casamento</h2>
+            <small>Tap to go back</small>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="actions">
+      <button onclick="speakCurrent(event)" class="listen">🔊 Listen</button>
+      <button onclick="rateCard('hard')" class="hard">I don't know</button>
+      <button onclick="rateCard('medium')" class="medium">Not sure</button>
+      <button onclick="rateCard('easy')" class="easy">I know this</button>
+    </section>
+
+    <section class="bottom-actions">
+      <button onclick="previousCard()">← Back</button>
+      <button onclick="resetProgress()">Reset progress</button>
+    </section>
+  </main>
+  <script src="flashcards.js"></script>
+</body>
+</html>
